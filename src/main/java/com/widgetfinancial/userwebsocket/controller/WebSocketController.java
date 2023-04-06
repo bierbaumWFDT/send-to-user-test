@@ -1,35 +1,37 @@
 package com.widgetfinancial.userwebsocket.controller;
 
 import java.security.Principal;
-import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.simp.SimpMessageSendingOperations;
-import org.springframework.messaging.simp.annotation.SendToUser;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
-import com.google.gson.Gson;
+import com.widgetfinancial.userwebsocket.domain.Message;
+import com.widgetfinancial.userwebsocket.domain.OutputMessage;
 
 @Controller
 public class WebSocketController {
+	private static final Logger logger = LogManager.getLogger(WebSocketController.class);
 	@Autowired
-	private SimpMessageSendingOperations messagingTemplate;
+	private SimpMessagingTemplate simpMessagingTemplate;
 	
-	private Gson gson = new Gson();
-	
-	@MessageMapping("/message")
-	@SendToUser("/queue/reply")
-	public String processMessageFromClient(
-			@Payload String message, Principal principal) {
-		return gson.fromJson(message, Map.class).get("name").toString();
-	}
-	
-	@MessageExceptionHandler
-	@SendToUser("/queue/errors")
-	public String handleException(Throwable exception) {
-		return exception.getMessage();
+	@MessageMapping("/room") 
+	public void sendSpecific(
+	  @Payload Message msg, 
+	  Principal user, 
+	  @Header("simpSessionId") String sessionId) { 
+	    OutputMessage out = new OutputMessage(
+	      msg.getFrom(), 
+	      msg.getText(),
+	      new SimpleDateFormat("HH:mm").format(new Date())); 
+	    simpMessagingTemplate.convertAndSendToUser(
+	      msg.getTo(), "/user/queue/specific-user", out); 
 	}
 }
